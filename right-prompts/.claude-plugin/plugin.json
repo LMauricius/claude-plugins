@@ -1,0 +1,19 @@
+{
+  "name": "right-prompts",
+  "version": "0.2.0",
+  "description": "Draws your own prompts flush right in the terminal transcript, chat style.",
+  "userConfig": {
+    "typed": {
+      "type": "boolean",
+      "title": "Right-align typed prompts",
+      "description": "Prompts you send from the terminal, a phone or web client, or an SDK host",
+      "default": true
+    },
+    "followUps": {
+      "type": "boolean",
+      "title": "Right-align follow-ups",
+      "description": "Messages Claude Code sends for you after a UI action (auto-continuation)",
+      "default": false
+    }
+  }
+}
