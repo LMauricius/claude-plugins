@@ -1,6 +1,6 @@
 {
   "name": "right-prompts",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Draws your own prompts flush right in the terminal transcript, chat style.",
   "userConfig": {
     "typed": {
