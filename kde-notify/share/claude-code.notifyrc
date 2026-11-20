@@ -1,0 +1,52 @@
+[Global]
+IconName=utilities-terminal
+Name=Claude Code
+Comment=Claude Code notifications
+
+[Event/response]
+Name=Response ready
+Comment=Claude finished a response
+Action=Popup|Sound
+Sound=complete
+
+[Event/permission]
+Name=Permission needed
+Comment=Claude asks for permission to run a tool
+Action=Popup|Sound
+Sound=dialog-warning
+
+[Event/question]
+Name=Question for you
+Comment=Claude asks you a question
+Action=Popup|Sound
+Sound=message-new-instant
+
+[Event/plan]
+Name=Plan ready
+Comment=Claude presents a plan for approval
+Action=Popup|Sound
+Sound=message
+
+[Event/idle]
+Name=Waiting for you
+Comment=Claude is idle and waits for input
+Action=Popup|Sound
+Sound=bell
+
+[Event/subagent]
+Name=Subagent finished
+Comment=A subagent finished its work
+Action=Popup|Sound
+Sound=message
+
+[Event/error]
+Name=Request failed
+Comment=A request ended with an API error
+Action=Popup|Sound
+Sound=dialog-error
+
+[Event/denied]
+Name=Action denied
+Comment=An action was denied automatically
+Action=Popup|Sound
+Sound=dialog-error

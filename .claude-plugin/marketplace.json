@@ -1,0 +1,14 @@
+{
+  "name": "qol-mods",
+  "description": "Quality-of-life plugins for Claude Code.",
+  "owner": {
+    "name": "LMauricius"
+  },
+  "plugins": [
+    {
+      "name": "kde-notify",
+      "source": "./kde-notify",
+      "description": "KDE Plasma notifications for Claude Code with per-event settings."
+    }
+  ]
+}

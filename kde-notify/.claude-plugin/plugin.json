@@ -1,0 +1,9 @@
+{
+  "name": "kde-notify",
+  "version": "0.2.1",
+  "description": "KDE Plasma notifications for Claude Code, one configurable event per situation (response, permission, question, plan, idle, subagent, error, denied).",
+  "author": {
+    "name": "LMauricius"
+  },
+  "license": "MIT"
+}
