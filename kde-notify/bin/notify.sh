@@ -3,7 +3,8 @@
 # Sends one KDE notification for <event>, honoring the per-event settings from
 # System Settings > Notifications > Claude Code (popup on/off, sound on/off
 # and which sound). Saves the popup's ID per session and event, so the next
-# popup of that event replaces it and dismiss.sh can close it.
+# popup of that event replaces it and dismiss.sh can close it. Clicking the
+# popup focuses Claude's window and closes the popup.
 ev=$1
 root=${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}
 rc=claude-code.notifyrc
@@ -86,11 +87,37 @@ esac
 
 action=$(cfg Action)
 case $action in *Popup*)
-    old=
-    [ -n "$f" ] && [ -r "$f" ] && read -r old < "$f"
-    id=$(notify-send -p ${old:+-r "$old"} -a 'Claude Code' -u "$u" -i "$i" \
-        -h string:x-kde-appname:claude-code -h "string:x-kde-eventId:$ev" \
-        "$t" "${proj:+$proj: }${msg:-$t}")
-    [ -n "$f" ] && [ -n "$id" ] && mkdir -p "${f%/*}" && printf '%s\n' "$id" > "$f" ;;
+    # Ancestor PIDs, nearest first: Claude's window (terminal, IDE) belongs to
+    # one of them. Read now, while they still run. comm may hold spaces, so
+    # the ppid is taken after its closing ")".
+    pids=() p=$PPID
+    while [ "$p" -gt 1 ] 2>/dev/null && pids+=("$p") && s=$(< "/proc/$p/stat"); do
+        s=${s##*) }; s=${s#* }; p=${s%% *}
+    done 2>/dev/null
+
+    # The ID file holds "<popup ID> <waiter PID>". The replaced popup's waiter
+    # would wait for clicks as long as the popup lives, so stop it; the comm
+    # check guards against a reused PID.
+    old= pid=
+    [ -n "$f" ] && [ -r "$f" ] && read -r old pid < "$f"
+    [ -n "$pid" ] && [ "$(cat "/proc/$pid/comm" 2>/dev/null)" = notify-send ] && kill "$pid"
+
+    # Waiter, in the background so the hook returns at once: notify-send waits
+    # for a click on the popup and prints the popup ID, then "default" on a
+    # click; EOF means the popup was closed or its waiter stopped.
+    (
+        coproc notify-send -p -A default=Focus ${old:+-r "$old"} -a 'Claude Code' \
+            -u "$u" -i "$i" -h string:x-kde-appname:claude-code \
+            -h "string:x-kde-eventId:$ev" "$t" "${proj:+$proj: }${msg:-$t}"
+        read -r id <&"${COPROC[0]}" || exit
+        [ -n "$f" ] && mkdir -p "${f%/*}" && printf '%s %s\n' "$id" "$COPROC_PID" > "$f"
+        read -r act <&"${COPROC[0]}" && [ "$act" = default ] || exit
+        "$root/bin/focus.sh" "$proj" "${pids[@]}"
+        # Forget and close the popup, unless a newer one took over the file.
+        [ -n "$f" ] && read -r cur _ < "$f" && [ "$cur" = "$id" ] && rm -f "$f"
+        gdbus call --session --dest org.freedesktop.Notifications \
+            --object-path /org/freedesktop/Notifications \
+            --method org.freedesktop.Notifications.CloseNotification "$id"
+    ) </dev/null >/dev/null 2>&1 & ;;
 esac
 case $action in *Sound*) play "$(cfg Sound)" ;; esac

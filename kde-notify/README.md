@@ -26,9 +26,15 @@ Each session keeps at most one popup per event: a new one replaces the previous 
 
 All popups of a session are closed when the session ends.
 
+## Click to focus
+
+Clicking a popup (or its entry in the notification history) brings the session's window to the front and closes the popup. This works for any terminal or IDE that runs Claude Code, on both Wayland and X11. If one application process owns several windows, the plugin picks the one whose title contains the project folder name.
+
+The plugin focuses the window only. In a terminal with tabs, it does not switch to the session's tab. Sessions with no window of their own (for example inside tmux or over SSH) only close the popup.
+
 ## Requirements
 
-KDE Plasma 6, `notify-send` (libnotify), `gdbus` (GLib), `paplay` and `jq`.
+KDE Plasma 6 (KWin), `notify-send` 0.8 or later (libnotify), `gdbus` (GLib), `paplay` and `jq`.
 
 ## Installation
 

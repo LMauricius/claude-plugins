@@ -11,7 +11,7 @@ if [ "$1" = all ]; then files=("$dir"/*); else files=("${@/#/$dir/}"); fi
 for f in "${files[@]}"; do
     # rm before closing: a concurrent notify.sh then starts a fresh popup
     # instead of replacing the one being closed.
-    [ -f "$f" ] && read -r id < "$f" && rm -f "$f" || continue
+    [ -f "$f" ] && read -r id _ < "$f" && rm -f "$f" || continue
     gdbus call --session --dest org.freedesktop.Notifications \
         --object-path /org/freedesktop/Notifications \
         --method org.freedesktop.Notifications.CloseNotification "$id" >/dev/null 2>&1
