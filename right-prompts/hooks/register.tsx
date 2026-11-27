@@ -95,6 +95,44 @@ const chrome = (p: Props = {}): number => {
   )
 }
 
+/** Text a node draws, nested Text runs joined; style and layout ignored. */
+const textOf = (node: RenderNode): string =>
+  typeof node === 'string' ? node : (node.children ?? []).map(textOf).join('')
+
+/** Whether `node` is a plain-string Text drawing exactly `text`: the one Text the mod re-wraps. */
+const isMessage = (node: RenderNode, text: string): boolean =>
+  typeof node !== 'string' &&
+  node.type === 'Text' &&
+  (node.children ?? []).every(c => typeof c === 'string') &&
+  textOf(node).trim() === text
+
+/**
+ * Fewest cells across the tree takes without losing content, so the caller
+ * shifts it right only as far as it fits (another plugin may frame the text
+ * with full-width rules).
+ * The message Text counts 0: it is re-wrapped to whatever room is left.
+ * Unknown elements are measured like a Box; text inside them still counts.
+ */
+const span = (node: RenderNode, text: string): number => {
+  if (typeof node !== 'string' && isMessage(node, text)) return 0
+  if (typeof node === 'string' || node.type === 'Text') {
+    // A truncating Text loses content when narrowed, so it keeps its full lines;
+    // a wrapping one (the default) reflows and only needs its widest word
+    const wrap = typeof node === 'string' ? undefined : node.props?.wrap
+    const truncates = typeof wrap === 'string' && wrap.startsWith('truncate')
+    let widest = 0
+    for (const piece of textOf(node).split(truncates ? '\n' : /\s/)) widest = Math.max(widest, cells(piece))
+    return widest
+  }
+  if (typeof node.props?.width === 'number') return node.props.width
+  const sizes = (node.children ?? []).map(c => span(c, text))
+  // Row is the Box default: children sit side by side, so their widths add up
+  const inner = node.props?.flexDirection?.toString().startsWith('column')
+    ? Math.max(0, ...sizes)
+    : sizes.reduce((a, b) => a + b, 0)
+  return inner + chrome(node.props)
+}
+
 /**
  * The tree with its first Text that draws exactly `text` swapped for
  * `draw(props, rows)`, the rows wrapped to the cells left at that depth;
@@ -111,9 +149,7 @@ const alignText = (
 
   if (node.type === 'Text') {
     // Only a plain-string Text: inline elements would be lost by re-wrapping
-    if (!children.every(c => typeof c === 'string')) return null
-    const own = children.join('').trim()
-    return own === text ? draw(node.props ?? {}, wrap(own, Math.max(1, width))) : null
+    return isMessage(node, text) ? draw(node.props ?? {}, wrap(text, Math.max(1, width))) : null
   }
 
   const fixed = typeof node.props?.width === 'number' ? node.props.width : Infinity
@@ -137,27 +173,31 @@ export const register: Register = (on, options) => {
   // Takes whatever the chain beneath draws (another plugin's bubble, or the
   // engine's row), pushes it right, and swaps the Text holding the message for
   // a column of pre-wrapped rows, each flush right. Row direction makes the
-  // bubble shrink to its widest row; paddingLeft is the width cap. Without
-  // such a Text (the engine's own row) the drawing is only pushed right.
+  // bubble shrink to its widest row; paddingLeft is the width cap, cut down to
+  // what the drawing's fixed parts leave free (a full-width frame stays put).
+  // Without such a Text (the engine's own row) the drawing is only pushed right.
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
     if (e.surface !== 'terminal' || !right.has(e.props.origin.kind)) return next(e)
 
     const row = await next(e)
     const { Box, Text } = $.ui.resolve(e)
     const columns = e.viewport?.columns ?? 80
-    const gap = Math.floor(columns * LEFT_GAP)
+    const text = e.props.text.trim()
+    const shift = Math.max(0, Math.min(Math.floor(columns * LEFT_GAP), columns - SAFETY - span(row, text)))
 
+    // alignSelf: a column parent would stretch the rows to its full width;
+    // flush right means against the widest row, not the parent's edge
     const draw = (props: Props, rows: string[]) => (
-      <Box flexDirection="column" alignItems="flex-end">
+      <Box flexDirection="column" alignItems="flex-end" alignSelf="flex-start">
         {rows.map(r => (
           <Text {...props}>{r}</Text>
         ))}
       </Box>
     )
-    const aligned = alignText(row, e.props.text.trim(), columns - gap - SAFETY, draw) ?? row
+    const aligned = alignText(row, text, columns - shift - SAFETY, draw) ?? row
 
     return (
-      <Box flexDirection="row" justifyContent="flex-end" paddingLeft={gap}>
+      <Box flexDirection="row" justifyContent="flex-end" paddingLeft={shift}>
         {aligned}
       </Box>
     )

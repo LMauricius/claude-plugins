@@ -72,3 +72,41 @@ test('a word wider than the row is cut, wide characters counted as 2', async ($,
   expect(rows).toEqual(['x'.repeat(24), 'x'.repeat(6), '漢'.repeat(12), '漢'])
   await ui.unmount()
 })
+
+// Stands for readable-layout: truncating rules as wide as the viewport around the text
+const framed = (on: On) =>
+  on('ui.render', { component: 'UserMessage' }, ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    const columns = e.viewport?.columns ?? 80
+    return (
+      <Box flexDirection="column" marginTop={1}>
+        <Text color="suggestion" wrap="truncate-end">
+          {'──'}
+          <Text bold>{' You '}</Text>
+          {'─'.repeat(columns - 9)}
+        </Text>
+        <Box flexDirection="column" paddingLeft={2}>
+          <Text>{e.props.text.trim()}</Text>
+        </Box>
+        <Text color="suggestion" wrap="truncate-end">
+          {'─'.repeat(columns - 2)}
+        </Text>
+      </Box>
+    )
+  })
+
+test('a full-width frame stays put; rows hug the widest one', async ($, on) => {
+  framed(on)
+  // Rules take 38 of 40 cols: no room to shift; 40 - safety 2 - padding 2 = 36 cells per row
+  const text = 'fix the parser and run the whole suite again, then ship it'
+  const ui = await $.ui.mount({ ...ROW, props: props('composer', text) })
+
+  const boxes = await ui.findAll({ type: 'Box' })
+  expect(boxes.find(b => b.props.justifyContent === 'flex-end')?.props.paddingLeft).toBe(0)
+  expect(boxes.find(b => b.props.alignItems === 'flex-end')?.props.alignSelf).toBe('flex-start')
+
+  const rows = (await ui.findAll({ type: 'Text' })).map(r => r.text)
+  expect(rows).toContain('fix the parser and run the whole')
+  expect(rows).toContain('suite again, then ship it')
+  await ui.unmount()
+})

@@ -15,9 +15,20 @@ KDE Plasma notifications for Claude Code. Every situation is its own notificatio
 | Request failed | A request ends with an API error. |
 | Action denied | An action is denied automatically (for example by auto mode). |
 
+## Automatic dismissal
+
+Each session keeps at most one popup per event: a new one replaces the previous one. Popups that only matter until you react are closed for you.
+
+| Event | Closed when |
+|---|---|
+| Permission needed, Question for you, Plan ready | A tool finishes or fails, an MCP elicitation is answered, Claude finishes a response, or you send a message. |
+| Response ready, Waiting for you | You send a message. |
+
+All popups of a session are closed when the session ends.
+
 ## Requirements
 
-KDE Plasma 6, `notify-send` (libnotify), `paplay` and `jq`.
+KDE Plasma 6, `notify-send` (libnotify), `gdbus` (GLib), `paplay` and `jq`.
 
 ## Installation
 

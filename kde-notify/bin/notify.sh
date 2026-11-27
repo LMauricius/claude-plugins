@@ -2,7 +2,8 @@
 # Usage: notify.sh <event>   (hook JSON on stdin)
 # Sends one KDE notification for <event>, honoring the per-event settings from
 # System Settings > Notifications > Claude Code (popup on/off, sound on/off
-# and which sound).
+# and which sound). Saves the popup's ID per session and event, so the next
+# popup of that event replaces it and dismiss.sh can close it.
 ev=$1
 root=${CLAUDE_PLUGIN_ROOT:-$(dirname "$0")/..}
 rc=claude-code.notifyrc
@@ -44,8 +45,10 @@ play() {
 cmp -s "$root/share/$rc" "$dst/$rc" ||
     { mkdir -p "$dst" && cp "$root/share/$rc" "$dst/$rc"; }
 
-# Lines: project folder, tool name, best available text (one line, <=160).
-{ read -r proj; read -r tool; read -r msg; } < <(jq -r '
+# Lines: session ID, project folder, tool name, best available text (one line,
+# <=160).
+{ read -r sid; read -r proj; read -r tool; read -r msg; } < <(jq -r '
+    (.session_id // ""),
     (.cwd // "" | split("/") | last),
     (.tool_name // ""),
     ((.message // .last_assistant_message // .error // .reason
@@ -74,10 +77,20 @@ case $ev in
     *) exit 1 ;;
 esac
 
+# ID file of this session's popup for $ev. Only in the private runtime dir
+# (never a shared /tmp), and only for a session ID that cannot escape it.
+f=
+case $sid in ''|*[!A-Za-z0-9-]*) ;; *)
+    [ -n "$XDG_RUNTIME_DIR" ] && f=$XDG_RUNTIME_DIR/kde-notify/$sid/$ev ;;
+esac
+
 action=$(cfg Action)
 case $action in *Popup*)
-    notify-send -a 'Claude Code' -u "$u" -i "$i" \
+    old=
+    [ -n "$f" ] && [ -r "$f" ] && read -r old < "$f"
+    id=$(notify-send -p ${old:+-r "$old"} -a 'Claude Code' -u "$u" -i "$i" \
         -h string:x-kde-appname:claude-code -h "string:x-kde-eventId:$ev" \
-        "$t" "${proj:+$proj: }${msg:-$t}" ;;
+        "$t" "${proj:+$proj: }${msg:-$t}")
+    [ -n "$f" ] && [ -n "$id" ] && mkdir -p "${f%/*}" && printf '%s\n' "$id" > "$f" ;;
 esac
 case $action in *Sound*) play "$(cfg Sound)" ;; esac

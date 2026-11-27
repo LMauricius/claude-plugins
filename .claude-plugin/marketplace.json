@@ -9,6 +9,11 @@
       "name": "kde-notify",
       "source": "./kde-notify",
       "description": "KDE Plasma notifications for Claude Code with per-event settings."
+    },
+    {
+      "name": "right-prompts",
+      "source": "./right-prompts",
+      "description": "Draws your own prompts flush right in the terminal transcript, chat style."
     }
   ]
 }
